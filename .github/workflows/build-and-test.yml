@@ -234,6 +234,15 @@ jobs:
         run: |
           make generate-gh-issue-templates
           git diff --exit-code '.github/ISSUE_TEMPLATE' || (echo 'Dropdowns in issue templates are out of date, please run "make generate-gh-issue-templates" and commit the changes in this PR.' && exit 1)
+  go-versions:
+      name: Lookup Go versions
+      runs-on: ubuntu-latest
+      outputs:
+        matrix: ${{ steps.versions.outputs.matrix }}
+      steps:
+        - uses: actions/checkout@v3
+        - uses: arnested/go-version-action@v1
+          id: versions
   unittest-matrix:
     strategy:
       matrix:
@@ -282,10 +291,10 @@ jobs:
           path: ~/.cache/go-build
           key: go-test-build-${{ runner.os }}-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
       - name: Run Unit Tests
-        if: startsWith( matrix.go-version, '1.21' ) != true
+        if: matrix.go-version != ${{ fromJSON(needs.go-versions.outputs.matrix) }}
         run: make gotest GROUP=${{ matrix.group }}
       - name: Run Unit Tests With Coverage
-        if: startsWith( matrix.go-version, '1.21' ) # only run coverage on one version
+        if: matrix.go-version == ${{ fromJSON(needs.go-versions.outputs.matrix) }}
         run: make gotest-with-cover GROUP=${{ matrix.group }}
       - uses: actions/upload-artifact@v4
         if: startsWith( matrix.go-version, '1.21' ) # only upload artifact for one version
